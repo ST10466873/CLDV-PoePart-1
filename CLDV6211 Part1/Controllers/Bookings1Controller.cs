@@ -1,4 +1,5 @@
-﻿using System;
+﻿//St10466873 CLDV6211 poePart3
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -20,10 +21,47 @@ namespace CLDV6211_Part1.Controllers
         }
 
         // GET: Bookings1
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string searchString, string eventType, DateTime? startDate, DateTime? endDate)
         {
-            var eventEaseDbContext = _context.Bookings.Include(b => b.Event).Include(b => b.Venue);
-            return View(await eventEaseDbContext.ToListAsync());
+            ViewData["EventTypes"] = new List<string> { "Conference", "Wedding", "Concert", "Corporate", "Party", "Other" };
+
+            var bookingsQuery = _context.Bookings
+                .Include(b => b.Venue)
+                .Include(b => b.Event)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                bookingsQuery = bookingsQuery.Where(s => s.Event.EventName.Contains(searchString)
+                                                || s.BookingID.ToString() == searchString);
+            }
+
+            if (!string.IsNullOrEmpty(eventType))
+            {
+                bookingsQuery = bookingsQuery.Where(x => x.Event.EventType == eventType);
+            }
+
+            if (startDate.HasValue)
+            {
+                bookingsQuery = bookingsQuery.Where(x => x.StartDate >= startDate.Value);
+            }
+            if (endDate.HasValue)
+            {
+                bookingsQuery = bookingsQuery.Where(x => x.EndDate <= endDate.Value);
+            }
+
+            var finalResult = await bookingsQuery.Select(b => new BookingViewModel
+            {
+                BookingID = b.BookingID,
+                VenueName = b.Venue.Name,
+                EventName = b.Event.EventName,
+                StartDate = b.StartDate,
+                EndDate = b.EndDate,
+                SpecialistName = b.SpecialistName,
+                VenueImageUrl = b.Venue.ImageUrl
+            }).ToListAsync();
+
+            return View(finalResult);
         }
 
         // GET: Bookings1/Details/5
